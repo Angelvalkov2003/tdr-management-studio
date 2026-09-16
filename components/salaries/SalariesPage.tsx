@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MONTH_NAMES, SALARY_PEOPLE } from "@/lib/constants";
-import { useCurrentPerson } from "@/lib/use-current-person";
 import type { SalaryPerson, SalaryRecord } from "@/types";
 import { ActivityLogPanel } from "@/components/ActivityLogPanel";
 
@@ -10,52 +9,84 @@ function recordKey(person: string, month: number) {
   return `${person}-${month}`;
 }
 
+function fillPercent(record: SalaryRecord | undefined): number {
+  if (!record) return 0;
+  if (record.days_paid != null && record.days_paid > 0) {
+    return Math.min(100, (record.days_paid / 30) * 100);
+  }
+  return record.paid ? 100 : 0;
+}
+
 function MonthSquare({
   person,
   month,
   year,
   record,
-  actor,
+  selected,
+  onSelect,
+}: {
+  person: SalaryPerson;
+  month: number;
+  year: number;
+  record: SalaryRecord | undefined;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const fill = fillPercent(record);
+
+  return (
+    <button
+      type="button"
+      title={`${MONTH_NAMES[month - 1]} — ${person}`}
+      onClick={onSelect}
+      className={`relative h-8 w-8 overflow-hidden rounded-md border bg-slate-100 transition sm:h-10 sm:w-10 ${
+        selected
+          ? "border-sky-500 ring-2 ring-sky-200"
+          : "border-slate-200 hover:border-slate-400"
+      }`}
+    >
+      <span
+        className="absolute inset-y-0 left-0 bg-emerald-500/90 transition-all"
+        style={{ width: `${fill}%` }}
+      />
+      {record?.days_paid != null && record.days_paid > 0 && (
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-slate-800">
+          {record.days_paid}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function MonthEditor({
+  person,
+  month,
+  year,
+  record,
+  onClose,
   onUpdated,
 }: {
   person: SalaryPerson;
   month: number;
   year: number;
   record: SalaryRecord | undefined;
-  actor: string | null;
+  onClose: () => void;
   onUpdated: (record: SalaryRecord) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [paid, setPaid] = useState(record?.paid ?? false);
   const [daysPaid, setDaysPaid] = useState(
     record?.days_paid != null ? String(record.days_paid) : "",
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setPaid(record?.paid ?? false);
-    setDaysPaid(record?.days_paid != null ? String(record.days_paid) : "");
-  }, [record]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
     }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-
-  const fill =
-    paid && daysPaid && Number(daysPaid) > 0 && Number(daysPaid) < 31
-      ? Math.min(100, (Number(daysPaid) / 30) * 100)
-      : paid
-        ? 100
-        : 0;
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   async function save() {
     setSaving(true);
@@ -63,6 +94,7 @@ function MonthSquare({
     try {
       const days =
         daysPaid.trim() === "" ? null : Number.parseInt(daysPaid, 10);
+      const nextPaid = paid || (days != null && days > 0);
       const res = await fetch("/api/salaries", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -70,15 +102,15 @@ function MonthSquare({
           person,
           year,
           month,
-          paid,
+          paid: nextPaid,
           days_paid: days,
-          actor,
+          actor: null,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed");
       onUpdated(data.record);
-      setOpen(false);
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -86,72 +118,114 @@ function MonthSquare({
     }
   }
 
+  const previewDays =
+    daysPaid.trim() === "" ? null : Number.parseInt(daysPaid, 10);
+  const previewFill =
+    previewDays != null && !Number.isNaN(previewDays) && previewDays > 0
+      ? Math.min(100, (previewDays / 30) * 100)
+      : paid
+        ? 100
+        : 0;
+
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 p-3 pt-16 sm:pt-24">
       <button
         type="button"
-        title={`${MONTH_NAMES[month - 1]} — ${person}`}
-        onClick={() => setOpen((v) => !v)}
-        className="relative h-8 w-8 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition hover:border-slate-400 sm:h-10 sm:w-10"
-      >
-        <span
-          className="absolute inset-x-0 bottom-0 bg-emerald-500/90 transition-all"
-          style={{ height: `${fill}%` }}
-        />
-        {record?.days_paid != null && record.paid && (
-          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-slate-800">
-            {record.days_paid}
-          </span>
-        )}
-      </button>
+        aria-label="Close"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              {person}
+            </p>
+            <p className="text-xs text-slate-500">
+              {MONTH_NAMES[month - 1]} {year}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
+          >
+            Close
+          </button>
+        </div>
 
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-[min(14rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-lg sm:left-1/2 sm:w-56 sm:-translate-x-1/2">
-          <p className="text-xs font-semibold text-slate-800">
-            {person} · {MONTH_NAMES[month - 1]} {year}
-          </p>
-          <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={paid}
-              onChange={(e) => setPaid(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            Paid
-          </label>
-          <label className="mt-2 block text-xs font-medium text-slate-600">
-            Days paid (optional)
-            <input
-              type="number"
-              min={0}
-              max={31}
-              value={daysPaid}
-              onChange={(e) => setDaysPaid(e.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
-            />
-          </label>
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all"
+            style={{ width: `${previewFill}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-[11px] text-slate-400">
+          Fill = days ÷ 30 (e.g. 15 → half, 10 → one third)
+        </p>
+
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={paid}
+            onChange={(e) => setPaid(e.target.checked)}
+            className="rounded border-slate-300"
+          />
+          Paid
+        </label>
+
+        <label className="mt-3 block text-sm font-medium text-slate-700">
+          Days paid
+          <input
+            type="number"
+            min={0}
+            max={30}
+            value={daysPaid}
+            onChange={(e) => {
+              setDaysPaid(e.target.value);
+              const n = Number.parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n > 0) setPaid(true);
+            }}
+            placeholder="e.g. 15 of 30"
+            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-base outline-none focus:border-slate-400 sm:text-sm"
+            autoFocus
+          />
+        </label>
+
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+        <div className="mt-5 flex gap-2">
           <button
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="mt-3 w-full rounded-md bg-slate-900 px-2 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-slate-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 export function SalariesPage() {
-  const { actor } = useCurrentPerson();
   const [year, setYear] = useState(new Date().getFullYear());
   const [records, setRecords] = useState<SalaryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [logKey, setLogKey] = useState(0);
+  const [editing, setEditing] = useState<{
+    person: SalaryPerson;
+    month: number;
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -199,6 +273,9 @@ export function SalariesPage() {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 8 }, (_, i) => currentYear - 3 + i);
+  const editingRecord = editing
+    ? byKey.get(recordKey(editing.person, editing.month))
+    : undefined;
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-[1100px] flex-1 flex-col gap-6 px-3 py-5 sm:px-4 sm:py-6">
@@ -266,8 +343,11 @@ export function SalariesPage() {
                           month={month}
                           year={year}
                           record={byKey.get(recordKey(person, month))}
-                          actor={actor}
-                          onUpdated={onUpdated}
+                          selected={
+                            editing?.person === person &&
+                            editing?.month === month
+                          }
+                          onSelect={() => setEditing({ person, month })}
                         />
                       ),
                     )}
@@ -282,6 +362,17 @@ export function SalariesPage() {
       <div className="mt-8 min-w-0 sm:mt-12">
         <ActivityLogPanel refreshKey={logKey} />
       </div>
+
+      {editing && (
+        <MonthEditor
+          person={editing.person}
+          month={editing.month}
+          year={year}
+          record={editingRecord}
+          onClose={() => setEditing(null)}
+          onUpdated={onUpdated}
+        />
+      )}
     </div>
   );
 }
