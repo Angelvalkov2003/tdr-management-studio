@@ -40,15 +40,15 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-72 shrink-0 flex-col rounded-xl border bg-slate-50/80 ${
+      className={`flex w-[min(16.5rem,78vw)] shrink-0 flex-col rounded-xl border bg-slate-50/80 sm:w-72 ${
         isOver ? "border-sky-300 bg-sky-50/50" : "border-slate-200"
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <h2 className="text-sm font-semibold text-slate-800">
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+        <h2 className="truncate text-sm font-semibold text-slate-800">
           {STATUS_LABELS[status]}
         </h2>
-        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-500 shadow-sm">
+        <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-500 shadow-sm">
           {tasks.length}
         </span>
       </div>
@@ -56,7 +56,7 @@ function Column({
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex max-h-[calc(100vh-220px)] flex-col gap-2 overflow-y-auto px-2 pb-3">
+        <div className="flex max-h-[min(60vh,calc(100dvh-240px))] flex-col gap-2 overflow-y-auto overscroll-contain px-2 pb-3">
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
@@ -273,9 +273,9 @@ export function KanbanBoard() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6 px-4 py-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col gap-6 px-3 py-5 sm:px-4 sm:py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-slate-900">
             Tasks
           </h1>
@@ -293,7 +293,7 @@ export function KanbanBoard() {
       </div>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm break-words text-red-700">
           {error}
         </p>
       )}
@@ -308,19 +308,21 @@ export function KanbanBoard() {
           onDragOver={onDragOver}
           onDragEnd={onDragEnd}
         >
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {TASK_STATUSES.map((status) => (
-              <Column
-                key={status}
-                status={status}
-                tasks={groups[status]}
-                onOpen={setSelected}
-              />
-            ))}
+          <div className="-mx-3 min-w-0 overflow-x-auto overscroll-x-contain px-3 pb-2 touch-pan-x sm:-mx-4 sm:px-4">
+            <div className="flex w-max gap-3">
+              {TASK_STATUSES.map((status) => (
+                <Column
+                  key={status}
+                  status={status}
+                  tasks={groups[status]}
+                  onOpen={setSelected}
+                />
+              ))}
+            </div>
           </div>
           <DragOverlay>
             {activeTask ? (
-              <div className="w-72 rounded-lg border border-sky-300 bg-white p-3 opacity-95 shadow-lg">
+              <div className="w-[min(16.5rem,78vw)] rounded-lg border border-sky-300 bg-white p-3 opacity-95 shadow-lg sm:w-72">
                 <p className="font-mono text-[11px] font-semibold text-sky-700">
                   {activeTask.code}
                 </p>
@@ -331,7 +333,9 @@ export function KanbanBoard() {
         </DndContext>
       )}
 
-      <ActivityLogPanel refreshKey={logKey} />
+      <div className="mt-8 min-w-0 sm:mt-12">
+        <ActivityLogPanel refreshKey={logKey} />
+      </div>
 
       {selected && (
         <TaskModal

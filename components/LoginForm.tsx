@@ -27,8 +27,12 @@ export function LoginForm() {
       }
 
       const params = new URLSearchParams(window.location.search);
-      const next = params.get("next") || "/tasks";
-      router.push(next.startsWith("/") ? next : "/tasks");
+      const next = params.get("next") || "/salaries";
+      const safeNext =
+        next.startsWith("/") && !next.startsWith("/tasks")
+          ? next
+          : "/salaries";
+      router.push(safeNext);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

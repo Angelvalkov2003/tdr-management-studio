@@ -10,15 +10,26 @@ export async function GET(request: NextRequest) {
 
   const limitParam = request.nextUrl.searchParams.get("limit");
   const offsetParam = request.nextUrl.searchParams.get("offset");
+  const entityId = request.nextUrl.searchParams.get("entity_id");
+  const entityType = request.nextUrl.searchParams.get("entity_type");
   const limit = Math.min(Math.max(Number(limitParam) || 20, 1), 100);
   const offset = Math.max(Number(offsetParam) || 0, 0);
 
   const supabase = getSupabaseAdmin();
-  const { data, error, count } = await supabase
+  let query = supabase
     .from("activity_log")
     .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order("created_at", { ascending: false });
+
+  if (entityId) query = query.eq("entity_id", entityId);
+  if (entityType === "task" || entityType === "salary") {
+    query = query.eq("entity_type", entityType);
+  }
+
+  const { data, error, count } = await query.range(
+    offset,
+    offset + limit - 1,
+  );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

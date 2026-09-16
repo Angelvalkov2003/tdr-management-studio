@@ -49,13 +49,13 @@ export function NewTaskForm({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4"
       onClick={onCancel}
     >
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl sm:p-6"
       >
         <h2 className="text-lg font-semibold text-slate-900">New task</h2>
         <p className="mt-1 text-sm text-slate-500">

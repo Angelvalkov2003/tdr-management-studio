@@ -1,11 +1,5 @@
-import { NavBar } from "@/components/NavBar";
-import { KanbanBoard } from "@/components/tasks/KanbanBoard";
+import { redirect } from "next/navigation";
 
 export default function TasksPage() {
-  return (
-    <>
-      <NavBar />
-      <KanbanBoard />
-    </>
-  );
+  redirect("/salaries");
 }

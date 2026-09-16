@@ -92,7 +92,7 @@ function MonthSquare({
         type="button"
         title={`${MONTH_NAMES[month - 1]} — ${person}`}
         onClick={() => setOpen((v) => !v)}
-        className="relative h-9 w-9 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition hover:border-slate-400 sm:h-10 sm:w-10"
+        className="relative h-8 w-8 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition hover:border-slate-400 sm:h-10 sm:w-10"
       >
         <span
           className="absolute inset-x-0 bottom-0 bg-emerald-500/90 transition-all"
@@ -106,7 +106,7 @@ function MonthSquare({
       </button>
 
       {open && (
-        <div className="absolute left-1/2 top-full z-30 mt-2 w-56 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+        <div className="absolute left-0 top-full z-30 mt-2 w-[min(14rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-lg sm:left-1/2 sm:w-56 sm:-translate-x-1/2">
           <p className="text-xs font-semibold text-slate-800">
             {person} · {MONTH_NAMES[month - 1]} {year}
           </p>
@@ -201,9 +201,9 @@ export function SalariesPage() {
   const years = Array.from({ length: 8 }, (_, i) => currentYear - 3 + i);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1100px] flex-1 flex-col gap-6 px-3 py-5 sm:px-4 sm:py-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-slate-900">
             Salaries
           </h1>
@@ -229,18 +229,18 @@ export function SalariesPage() {
       </div>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm break-words text-red-700">
           {error}
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="min-w-[720px] p-4">
-          <div className="mb-2 flex items-center gap-3 pl-[7.5rem]">
-            {MONTH_NAMES.map((name, i) => (
+      <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="w-max min-w-full p-3 sm:p-4">
+          <div className="mb-2 flex items-center gap-2 pl-[calc(5.5rem+0.5rem)] sm:gap-3 sm:pl-[calc(7rem+0.75rem)]">
+            {MONTH_NAMES.map((name) => (
               <div
                 key={name}
-                className="w-9 text-center text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:w-10"
+                className="w-8 text-center text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:w-10"
                 title={name}
               >
                 {name.slice(0, 3)}
@@ -253,11 +253,11 @@ export function SalariesPage() {
           ) : (
             <div className="space-y-3">
               {SALARY_PEOPLE.map((person) => (
-                <div key={person} className="flex items-center gap-3">
-                  <div className="w-28 shrink-0 text-sm font-medium text-slate-800">
+                <div key={person} className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-[5.5rem] shrink-0 text-sm font-medium text-slate-800 sm:w-28">
                     {person}
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 sm:gap-3">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(
                       (month) => (
                         <MonthSquare
@@ -279,7 +279,9 @@ export function SalariesPage() {
         </div>
       </div>
 
-      <ActivityLogPanel refreshKey={logKey} />
+      <div className="mt-8 min-w-0 sm:mt-12">
+        <ActivityLogPanel refreshKey={logKey} />
+      </div>
     </div>
   );
 }

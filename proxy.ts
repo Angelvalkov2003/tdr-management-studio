@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
       pathname === "/login" &&
       isValidSessionToken(request.cookies.get(SESSION_COOKIE)?.value)
     ) {
-      return NextResponse.redirect(new URL("/tasks", request.url));
+      return NextResponse.redirect(new URL("/salaries", request.url));
     }
     return NextResponse.next();
   }
@@ -31,8 +31,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/tasks", request.url));
+  if (pathname === "/" || pathname === "/tasks" || pathname.startsWith("/tasks/")) {
+    return NextResponse.redirect(new URL("/salaries", request.url));
   }
 
   return NextResponse.next();

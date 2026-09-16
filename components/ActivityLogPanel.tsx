@@ -42,7 +42,7 @@ export function ActivityLogPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [load, refreshKey]);
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <h2 className="text-sm font-semibold text-slate-900">Activity log</h2>
         <button
@@ -75,12 +75,14 @@ export function ActivityLogPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                     </span>
                   )}
                   {entry.ip_address && (
-                    <span className="font-mono text-[11px] text-slate-400">
+                    <span className="break-all font-mono text-[11px] text-slate-400">
                       {entry.ip_address}
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-sm text-slate-700">{entry.action}</p>
+                <p className="mt-1 break-words text-sm text-slate-700">
+                  {entry.action}
+                </p>
               </li>
             ))}
           </ul>
