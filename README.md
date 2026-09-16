@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TDR Management Studio
 
-## Getting Started
+Shared-password task board and salary tracker for the TDR team. Built with Next.js (App Router), Supabase, and Tailwind CSS.
 
-First, run the development server:
+## Setup
+
+### 1. Environment variables
+
+Copy the example file and fill in values from your Supabase project (**Settings → API**):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required variables:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Notes |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon / public key |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Optional publishable key (same project) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** — never expose to the browser |
+| `ADMIN_PASSWORD` | Shared password that unlocks the app |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Database
 
-## Learn More
+In the Supabase SQL Editor, run the full migration:
 
-To learn more about Next.js, take a look at the following resources:
+`supabase/migrations/001_initial_schema.sql`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This creates `tasks`, `salary_records`, `activity_log`, the `TDR-N` code sequence, and enables RLS (no public policies — the Next.js server uses the service role).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Install & run
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). You will be prompted for `ADMIN_PASSWORD`.
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Add the same environment variables in the Vercel project settings (Production / Preview). Local `.env.local` is not used in production.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## App overview
+
+- **Auth** — single shared password; httpOnly cookie session; `proxy.ts` blocks unauthenticated pages/API calls
+- **Tasks** (`/tasks`) — Kanban: Idea → TODO → In Progress → Done → Abandoned, drag-and-drop via `@dnd-kit`
+- **Salaries** (`/salaries`) — per-person month grid with paid toggle / days paid
+- **Activity log** — recent mutations with actor + IP on both pages
+
+People lists:
+
+- Tasks: Pavel, Angel, Tonislav, Hristo, Hakan  
+- Salaries: Angel, Tonislav, Hristo, Hakan
