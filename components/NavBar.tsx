@@ -13,28 +13,28 @@ export function NavBar() {
     router.refresh();
   }
 
-  const salariesActive =
-    pathname === "/salaries" || pathname.startsWith("/salaries/");
+  const linkClass = (href: string) =>
+    `rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3 ${
+      pathname === href || pathname.startsWith(`${href}/`)
+        ? "bg-slate-900 text-white"
+        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+    }`;
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex w-full min-w-0 max-w-[1600px] items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Link
-            href="/salaries"
+            href="/tasks"
             className="shrink-0 text-sm font-semibold tracking-tight text-slate-900"
           >
             TDR Studio
           </Link>
           <nav className="flex min-w-0 items-center gap-1">
-            <Link
-              href="/salaries"
-              className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3 ${
-                salariesActive
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              }`}
-            >
+            <Link href="/tasks" className={linkClass("/tasks")}>
+              Tasks
+            </Link>
+            <Link href="/salaries" className={linkClass("/salaries")}>
               Salaries
             </Link>
           </nav>
