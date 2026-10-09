@@ -24,11 +24,18 @@ Required variables:
 
 ### 2. Database
 
-In the Supabase SQL Editor, run the full migration:
+In the Supabase SQL Editor, run:
 
-`supabase/migrations/001_initial_schema.sql`
+1. `supabase/migrations/001_initial_schema.sql` (fresh project)
+2. If the project already existed before multi-assignee/links/comments: also run `supabase/migrations/002_task_assignees_links_comments.sql`
 
-This creates `tasks`, `salary_records`, `activity_log`, the `TDR-N` code sequence, and enables RLS (no public policies — the Next.js server uses the service role).
+Or, with the database password in `.env.local` as `SUPABASE_DB_PASSWORD` / `DATABASE_URL`:
+
+```bash
+node scripts/apply-migration-002.mjs
+```
+
+This creates/updates `tasks` (including `assignees` + `links`), `task_comments`, `salary_records`, `activity_log`, the `TDR-N` code sequence, and enables RLS (no public policies — the Next.js server uses the service role).
 
 ### 3. Install & run
 

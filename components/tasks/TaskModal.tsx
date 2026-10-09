@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { STATUS_LABELS, TASK_PEOPLE, TASK_STATUSES } from "@/lib/constants";
-import type { ActivityLog, Task, TaskAssignee, TaskStatus } from "@/types";
+import type {
+  ActivityLog,
+  Task,
+  TaskAssignee,
+  TaskComment,
+  TaskLink,
+  TaskStatus,
+} from "@/types";
 
 export function TaskModal({
   task,
@@ -21,14 +28,25 @@ export function TaskModal({
   const [description, setDescription] = useState(task.description ?? "");
   const [estimate, setEstimate] = useState(task.estimate);
   const [status, setStatus] = useState<TaskStatus>(task.status);
-  const [assignee, setAssignee] = useState<TaskAssignee | "">(
-    task.assignee ?? "",
+  const [assignees, setAssignees] = useState<TaskAssignee[]>(
+    task.assignees ?? [],
   );
+  const [links, setLinks] = useState<TaskLink[]>(task.links ?? []);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkLabel, setLinkLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<ActivityLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentAuthor, setCommentAuthor] = useState<TaskAssignee | "">(
+    (actor as TaskAssignee) || "",
+  );
+  const [commentBody, setCommentBody] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -59,6 +77,42 @@ export function TaskModal({
     };
   }, [task.code]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadComments() {
+      setCommentsLoading(true);
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/comments`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setComments(data.comments ?? []);
+      } finally {
+        if (!cancelled) setCommentsLoading(false);
+      }
+    }
+    void loadComments();
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id]);
+
+  function toggleAssignee(name: TaskAssignee) {
+    setAssignees((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
+  }
+
+  function addLink() {
+    const url = linkUrl.trim();
+    if (!url) return;
+    setLinks((prev) => [
+      ...prev,
+      linkLabel.trim() ? { url, label: linkLabel.trim() } : { url },
+    ]);
+    setLinkUrl("");
+    setLinkLabel("");
+  }
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -71,8 +125,9 @@ export function TaskModal({
           description,
           estimate,
           status,
-          assignee: assignee || null,
-          actor,
+          assignees,
+          links,
+          actor: commentAuthor || actor,
         }),
       });
       const data = await res.json();
@@ -93,7 +148,7 @@ export function TaskModal({
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actor }),
+        body: JSON.stringify({ actor: commentAuthor || actor }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Delete failed");
@@ -103,6 +158,30 @@ export function TaskModal({
       setError(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function submitComment(e: React.FormEvent) {
+    e.preventDefault();
+    setCommentSaving(true);
+    setCommentError(null);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          author: commentAuthor,
+          body: commentBody,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Comment failed");
+      setComments((prev) => [...prev, data.comment]);
+      setCommentBody("");
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Comment failed");
+    } finally {
+      setCommentSaving(false);
     }
   }
 
@@ -188,35 +267,89 @@ export function TaskModal({
               </label>
             </div>
 
-            <label className="block text-sm font-medium text-slate-700">
-              Estimate slider: {estimate}
-              <input
-                type="range"
-                min={1}
-                max={10}
-                value={estimate}
-                onChange={(e) => setEstimate(Number(e.target.value))}
-                className="mt-2 w-full"
-              />
-            </label>
+            <fieldset>
+              <legend className="text-sm font-medium text-slate-700">
+                Assignees
+              </legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {TASK_PEOPLE.map((name) => {
+                  const selected = assignees.includes(name);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => toggleAssignee(name)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                        selected
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
 
-            <label className="block text-sm font-medium text-slate-700">
-              Assignee
-              <select
-                value={assignee}
-                onChange={(e) =>
-                  setAssignee(e.target.value as TaskAssignee | "")
-                }
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-400 sm:text-sm"
-              >
-                <option value="">None</option>
-                {TASK_PEOPLE.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div>
+              <p className="text-sm font-medium text-slate-700">Links</p>
+              {links.length > 0 ? (
+                <ul className="mt-2 space-y-1.5">
+                  {links.map((link, index) => (
+                    <li
+                      key={`${link.url}-${index}`}
+                      className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-sm"
+                    >
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-sky-700 hover:underline"
+                      >
+                        {link.label || link.url}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLinks((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          )
+                        }
+                        className="shrink-0 text-xs text-slate-400 hover:text-red-600"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-slate-400">No links yet.</p>
+              )}
+              <div className="mt-2 space-y-2">
+                <input
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                />
+                <div className="flex gap-2">
+                  <input
+                    value={linkLabel}
+                    onChange={(e) => setLinkLabel(e.target.value)}
+                    placeholder="Label (optional)"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={addLink}
+                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -261,6 +394,83 @@ export function TaskModal({
               </div>
             )}
           </div>
+
+          <section className="mt-10 border-t border-slate-200 pt-5">
+            <h3 className="text-sm font-semibold text-slate-900">Comments</h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Choose who is writing, then add a comment.
+            </p>
+
+            <div className="mt-3 space-y-3">
+              {commentsLoading ? (
+                <p className="text-sm text-slate-500">Loading comments…</p>
+              ) : comments.length === 0 ? (
+                <p className="text-sm text-slate-500">No comments yet.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {comments.map((comment) => (
+                    <li
+                      key={comment.id}
+                      className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5"
+                    >
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="rounded bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-800">
+                          {comment.author}
+                        </span>
+                        <time className="text-[11px] tabular-nums text-slate-400">
+                          {new Date(comment.created_at).toLocaleString()}
+                        </time>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">
+                        {comment.body}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <form onSubmit={submitComment} className="mt-4 space-y-2">
+              <label className="block text-xs font-medium text-slate-600">
+                Comment as
+                <select
+                  value={commentAuthor}
+                  onChange={(e) =>
+                    setCommentAuthor(e.target.value as TaskAssignee | "")
+                  }
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  required
+                >
+                  <option value="">Select person</option>
+                  {TASK_PEOPLE.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <textarea
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                rows={3}
+                placeholder="Write a comment…"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                required
+              />
+              {commentError && (
+                <p className="text-sm text-red-600">{commentError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={
+                  commentSaving || !commentAuthor || !commentBody.trim()
+                }
+                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {commentSaving ? "Posting…" : "Post comment"}
+              </button>
+            </form>
+          </section>
 
           <section className="mt-10 border-t border-slate-200 pt-5">
             <h3 className="text-sm font-semibold text-slate-900">

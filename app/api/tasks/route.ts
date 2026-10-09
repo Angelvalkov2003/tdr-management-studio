@@ -4,8 +4,13 @@ import { requireAuth } from "@/lib/api-auth";
 import { logActivity } from "@/lib/activity";
 import { getClientIp } from "@/lib/ip";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { STATUS_LABELS, TASK_PEOPLE, TASK_STATUSES } from "@/lib/constants";
-import type { Task, TaskAssignee, TaskStatus } from "@/types";
+import { STATUS_LABELS, TASK_STATUSES } from "@/lib/constants";
+import {
+  normalizeTask,
+  parseAssigneesInput,
+  parseLinksInput,
+} from "@/lib/tasks";
+import type { TaskStatus } from "@/types";
 
 export async function GET() {
   const denied = await requireAuth();
@@ -22,7 +27,10 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ tasks: data as Task[] });
+  const tasks = (data ?? []).map((row) =>
+    normalizeTask(row as Record<string, unknown>),
+  );
+  return NextResponse.json({ tasks });
 }
 
 export async function POST(request: NextRequest) {
@@ -33,7 +41,8 @@ export async function POST(request: NextRequest) {
     title?: string;
     description?: string | null;
     estimate?: number;
-    assignee?: TaskAssignee | null;
+    assignees?: unknown;
+    links?: unknown;
     status?: TaskStatus;
     actor?: string | null;
   };
@@ -62,9 +71,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const assignee = body.assignee ?? null;
-  if (assignee !== null && !TASK_PEOPLE.includes(assignee)) {
-    return NextResponse.json({ error: "Invalid assignee" }, { status: 400 });
+  const assignees = parseAssigneesInput(body.assignees ?? []);
+  if (assignees === null) {
+    return NextResponse.json({ error: "Invalid assignees" }, { status: 400 });
+  }
+
+  const links = parseLinksInput(body.links ?? []);
+  if (links === null) {
+    return NextResponse.json({ error: "Invalid links" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -85,7 +99,8 @@ export async function POST(request: NextRequest) {
       title,
       description: body.description?.trim() || null,
       estimate,
-      assignee,
+      assignees,
+      links,
       status,
       position: nextPosition,
     })
@@ -96,7 +111,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const task = data as Task;
+  const task = normalizeTask(data as Record<string, unknown>);
   await logActivity({
     entity_type: "task",
     entity_id: task.code,

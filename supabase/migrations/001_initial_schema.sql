@@ -28,19 +28,34 @@ CREATE TABLE IF NOT EXISTS tasks (
   title text NOT NULL,
   description text,
   estimate integer NOT NULL CHECK (estimate >= 1 AND estimate <= 10),
-  assignee text CHECK (
-    assignee IS NULL
-    OR assignee IN ('Pavel', 'Angel', 'Tonislav', 'Hristo', 'Hakan')
-  ),
+  assignees text[] NOT NULL DEFAULT '{}',
+  links jsonb NOT NULL DEFAULT '[]'::jsonb,
   status text NOT NULL DEFAULT 'idea'
     CHECK (status IN ('idea', 'todo', 'in_progress', 'done', 'abandoned')),
   position integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT tasks_assignees_check CHECK (
+    assignees <@ ARRAY['Pavel', 'Angel', 'Tonislav', 'Hristo', 'Hakan']::text[]
+  ),
+  CONSTRAINT tasks_links_is_array CHECK (jsonb_typeof(links) = 'array')
 );
 
 CREATE INDEX IF NOT EXISTS tasks_status_position_idx
   ON tasks (status, position);
+
+-- Comments on tasks
+CREATE TABLE IF NOT EXISTS task_comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id uuid NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  author text NOT NULL
+    CHECK (author IN ('Pavel', 'Angel', 'Tonislav', 'Hristo', 'Hakan')),
+  body text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS task_comments_task_id_created_at_idx
+  ON task_comments (task_id, created_at ASC);
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger
@@ -104,6 +119,7 @@ CREATE INDEX IF NOT EXISTS activity_log_created_at_idx
 -- If you enable RLS later, keep service-role bypass for server API routes.
 -- -----------------------------------------------------------------------------
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE salary_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 

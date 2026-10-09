@@ -4,8 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "@/types";
 
-function initials(name: string | null) {
-  if (!name) return "—";
+function initials(name: string) {
   return name
     .split(" ")
     .map((p) => p[0])
@@ -35,6 +34,8 @@ export function TaskCard({
     transition,
   };
 
+  const assignees = task.assignees ?? [];
+
   return (
     <button
       type="button"
@@ -51,23 +52,41 @@ export function TaskCard({
         <span className="font-mono text-[11px] font-semibold text-sky-700">
           {task.code}
         </span>
-        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800">
-          {task.estimate}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {(task.links?.length ?? 0) > 0 && (
+            <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
+              {task.links.length} link{task.links.length === 1 ? "" : "s"}
+            </span>
+          )}
+          <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800">
+            {task.estimate}
+          </span>
+        </div>
       </div>
       <p className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-800">
         {task.title}
       </p>
-      <div className="mt-2 flex items-center gap-2">
-        <span
-          title={task.assignee ?? "Unassigned"}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-600"
-        >
-          {initials(task.assignee)}
-        </span>
-        <span className="truncate text-xs text-slate-500">
-          {task.assignee ?? "Unassigned"}
-        </span>
+      <div className="mt-2 flex min-w-0 items-center gap-2">
+        {assignees.length === 0 ? (
+          <span className="text-xs text-slate-400">Unassigned</span>
+        ) : (
+          <>
+            <div className="flex -space-x-1.5">
+              {assignees.slice(0, 4).map((name) => (
+                <span
+                  key={name}
+                  title={name}
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white bg-slate-100 text-[10px] font-semibold text-slate-600"
+                >
+                  {initials(name)}
+                </span>
+              ))}
+            </div>
+            <span className="truncate text-xs text-slate-500">
+              {assignees.join(", ")}
+            </span>
+          </>
+        )}
       </div>
     </button>
   );

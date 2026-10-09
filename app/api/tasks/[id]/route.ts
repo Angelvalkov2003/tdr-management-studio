@@ -4,8 +4,15 @@ import { requireAuth } from "@/lib/api-auth";
 import { logActivity } from "@/lib/activity";
 import { getClientIp } from "@/lib/ip";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { STATUS_LABELS, TASK_PEOPLE, TASK_STATUSES } from "@/lib/constants";
-import type { Task, TaskAssignee, TaskStatus } from "@/types";
+import { STATUS_LABELS, TASK_STATUSES } from "@/lib/constants";
+import {
+  normalizeTask,
+  parseAssigneesInput,
+  parseLinksInput,
+  sameAssignees,
+  sameLinks,
+} from "@/lib/tasks";
+import type { TaskStatus } from "@/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -19,7 +26,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     title?: string;
     description?: string | null;
     estimate?: number;
-    assignee?: TaskAssignee | null;
+    assignees?: unknown;
+    links?: unknown;
     status?: TaskStatus;
     position?: number;
     actor?: string | null;
@@ -42,7 +50,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const current = existing as Task;
+  const current = normalizeTask(existing as Record<string, unknown>);
   const updates: Record<string, unknown> = {};
   const changes: string[] = [];
 
@@ -85,14 +93,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
   }
 
-  if (body.assignee !== undefined) {
-    const assignee = body.assignee;
-    if (assignee !== null && !TASK_PEOPLE.includes(assignee)) {
-      return NextResponse.json({ error: "Invalid assignee" }, { status: 400 });
+  if (body.assignees !== undefined) {
+    const assignees = parseAssigneesInput(body.assignees);
+    if (assignees === null) {
+      return NextResponse.json({ error: "Invalid assignees" }, { status: 400 });
     }
-    if (assignee !== current.assignee) {
-      updates.assignee = assignee;
-      changes.push(`assignee → ${assignee ?? "None"}`);
+    if (!sameAssignees(assignees, current.assignees)) {
+      updates.assignees = assignees;
+      changes.push(
+        `assignees → ${assignees.length ? assignees.join(", ") : "None"}`,
+      );
+    }
+  }
+
+  if (body.links !== undefined) {
+    const links = parseLinksInput(body.links);
+    if (links === null) {
+      return NextResponse.json({ error: "Invalid links" }, { status: 400 });
+    }
+    if (!sameLinks(links, current.links)) {
+      updates.links = links;
+      changes.push(`links → ${links.length}`);
     }
   }
 
@@ -132,7 +153,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const task = data as Task;
+  const task = normalizeTask(data as Record<string, unknown>);
   if (changes.length > 0) {
     await logActivity({
       entity_type: "task",
@@ -171,7 +192,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const task = existing as Task;
+  const task = normalizeTask(existing as Record<string, unknown>);
   const { error } = await supabase.from("tasks").delete().eq("id", id);
 
   if (error) {

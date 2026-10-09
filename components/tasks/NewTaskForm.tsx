@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TASK_PEOPLE } from "@/lib/constants";
-import type { Task, TaskAssignee } from "@/types";
+import type { Task, TaskAssignee, TaskLink } from "@/types";
 
 export function NewTaskForm({
   actor,
@@ -16,9 +16,29 @@ export function NewTaskForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [estimate, setEstimate] = useState(3);
-  const [assignee, setAssignee] = useState<TaskAssignee | "">("");
+  const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
+  const [links, setLinks] = useState<TaskLink[]>([]);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkLabel, setLinkLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleAssignee(name: TaskAssignee) {
+    setAssignees((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
+  }
+
+  function addLink() {
+    const url = linkUrl.trim();
+    if (!url) return;
+    setLinks((prev) => [
+      ...prev,
+      linkLabel.trim() ? { url, label: linkLabel.trim() } : { url },
+    ]);
+    setLinkUrl("");
+    setLinkLabel("");
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,7 +52,8 @@ export function NewTaskForm({
           title,
           description,
           estimate,
-          assignee: assignee || null,
+          assignees,
+          links,
           status: "idea",
           actor,
         }),
@@ -96,23 +117,83 @@ export function NewTaskForm({
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Assignee
-            <select
-              value={assignee}
-              onChange={(e) =>
-                setAssignee(e.target.value as TaskAssignee | "")
-              }
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          <fieldset>
+            <legend className="text-sm font-medium text-slate-700">
+              Assignees
+            </legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {TASK_PEOPLE.map((name) => {
+                const selected = assignees.includes(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => toggleAssignee(name)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                      selected
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div>
+            <p className="text-sm font-medium text-slate-700">Links</p>
+            {links.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {links.map((link, index) => (
+                  <li
+                    key={`${link.url}-${index}`}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="min-w-0 flex-1 truncate text-sky-700 hover:underline"
+                    >
+                      {link.label || link.url}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLinks((prev) => prev.filter((_, i) => i !== index))
+                      }
+                      className="text-xs text-slate-400 hover:text-red-600"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+              <input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              />
+              <input
+                value={linkLabel}
+                onChange={(e) => setLinkLabel(e.target.value)}
+                placeholder="Label (optional)"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-1"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addLink}
+              className="mt-2 text-xs font-medium text-sky-700 hover:underline"
             >
-              <option value="">None</option>
-              {TASK_PEOPLE.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+              + Add link
+            </button>
+          </div>
         </div>
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
